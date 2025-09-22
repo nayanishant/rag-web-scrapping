@@ -1,5 +1,6 @@
 RAG Web Scraping Project
 This project implements a Retrieval-Augmented Generation (RAG) system to scrape content from https://www.apple.com, store it in a Chroma vector store, and query it using natural language queries (e.g., "iPhone", "WWDC24"). It leverages LangChain with firecrawl-py==0.0.13 for web scraping and Google Gemini embeddings (models/embedding-001) for vector search.
+
 Features
 
 Web Scraping: Uses FireCrawlLoader to scrape content from https://www.apple.com.

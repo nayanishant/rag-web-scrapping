@@ -3,7 +3,10 @@ from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders.firecrawl import FireCrawlLoader
 from langchain_chroma import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv()
 
@@ -89,12 +92,52 @@ def query_vector_store(query):
         search_kwargs = {"k": 3}
     )
 
-    relevant_doc = retriever.invoke(query)
-    for i, doc in enumerate(relevant_doc, 1):
-        print(f"Document {i}:\n{doc.page_content}\n")
-        if doc.metadata:
-            print(f"Source: {doc.metadata.get('source', 'Unknown')}\n")
+    llm = ChatGoogleGenerativeAI(
+        google_api_key = gemini_api_key,
+        model = "gemini-1.5-flash",
+        temperature = 0.7
+    )
 
-query = "iPhone17"
+    prompt_template = PromptTemplate(
+        input_variables=["context", "question"],
+        template="""You are a helpful assistant. Use the following context from scraped web content to answer the question concisely. If the context doesn't contain relevant information, say so and provide a general answer based on your knowledge. Cite sources if available.
+
+        Context:
+        {context}
+
+        Question: {question}
+
+        Answer:
+        """
+    )
+
+    def format_docs(docs):
+        return "\n\n".join(f"Document {i+1} (Source: {doc.metadata.get('source', 'Unknown')}):\n{doc.page_content}" for i, doc in enumerate(docs))
+    
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt_template
+        | llm
+        | StrOutputParser()
+    )
+
+    try:
+        relevant_docs = retriever.invoke(query)
+        print("Retrieved Documents:")
+        if not relevant_docs:
+            print("No relevant documents found.")
+        for i, doc in enumerate(relevant_docs, 1):
+            print(f"Document {i}:\n{doc.page_content}\n")
+            if doc.metadata:
+                print(f"Source: {doc.metadata.get('source', 'Unknown')}\n")
+
+        print("LLM Answer:")
+        answer = rag_chain.invoke(query)
+        print(answer)
+
+    except Exception as e:
+        raise ValueError(f"Failed to query vector store or generate answer: {str(e)}")
+
+query = "Features of iPhone Air"
 
 query_vector_store(query)

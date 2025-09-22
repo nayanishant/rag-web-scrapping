@@ -5,3 +5,4 @@ langchain-google-genai
 chromadb
 firecrawl-py==0.0.13
 langchain-chroma
+langchain-core
